@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    tools:context="com.thomas_dieuzeide.myapplication.FragmentPage">
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:hint="Travail demandé"
+        android:ems="10"
+        android:id="@+id/editTextDemand"
+        android:layout_marginTop="40dp"
+        android:layout_below="@+id/textView"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Informations travail"
+        android:id="@+id/textView"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:textColorHighlight="@color/abc_background_cache_hint_selector_material_dark"
+        android:textSize="@dimen/abc_text_size_large_material" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:id="@+id/editTextExecute"
+        android:layout_below="@+id/editTextDemand"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="50dp"
+        android:hint="Travail exécuté"
+        android:layout_alignParentEnd="true" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="RETOUR"
+        android:id="@+id/buttonNext"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:id="@+id/editTextDevis"
+        android:layout_below="@+id/editTextExecute"
+        android:layout_marginTop="50dp"
+        android:layout_alignParentStart="true"
+        android:hint="Numéro Devis"
+        android:layout_toStartOf="@+id/buttonNext" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:id="@+id/editTextFacture"
+        android:layout_below="@+id/editTextExecute"
+        android:layout_marginTop="50dp"
+        android:layout_alignLeft="@+id/buttonNext"
+        android:hint="Numéro Commande"
+        android:layout_alignParentEnd="true" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="textPersonName"
+        android:id="@+id/editTextObservations"
+        android:layout_below="@+id/editTextDevis"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="50dp"
+        android:hint="Observations"
+        android:layout_alignParentEnd="true" />
+
+    <Spinner
+        android:layout_width="wrap_content"
+        android:layout_height="80dp"
+        android:id="@+id/spinnerwork"
+        style="@android:style/Widget.Spinner"
+        android:layout_below="@+id/editTextObservations"
+        android:layout_alignStart="@+id/textView"
+        android:layout_alignEnd="@+id/textView" />
+
+     <TextView
+         android:layout_width="300dp"
+         android:layout_height="100dp"
+         android:text="NOMBRE DE TRAVAILLEURS:"
+         android:id="@+id/textView2"
+         android:layout_alignBottom="@+id/spinnerwork"
+         android:layout_alignStart="@+id/editTextObservations"
+         android:layout_below="@+id/editTextObservations"
+         android:textSize="15dp"
+         android:textIsSelectable="false"
+         android:padding="30dp" />
+
+     <Button
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:text="TRAVAILLEURS ADDITIONNELS"
+         android:id="@+id/buttonworker"
+         android:layout_below="@+id/spinnerwork"
+         android:layout_alignEnd="@+id/spinnerwork"
+         android:layout_toEndOf="@+id/textView2" />
+
+     <ListView
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:id="@+id/listViewWorker"
+         android:layout_below="@+id/buttonworker"
+         android:layout_alignParentStart="true"
+         android:layout_above="@+id/buttonNext" />
+
+</RelativeLayout>
