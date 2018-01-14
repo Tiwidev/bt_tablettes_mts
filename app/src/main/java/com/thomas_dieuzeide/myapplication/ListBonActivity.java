@@ -41,6 +41,7 @@ import java.util.List;
 import jxl.Cell;
 import jxl.Sheet;
 import jxl.Workbook;
+import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
 
 public class ListBonActivity extends AppCompatActivity {
@@ -83,20 +84,34 @@ public class ListBonActivity extends AppCompatActivity {
                 final String displaykey = ((TextView) arg1).getText().toString();
                 final String key = ((TextView) arg1).getText().toString().split(":")[0];
                 final int session = getSessionNumber(key);
-                if (session == 0) {
+                final Cursor c = db.getSession(key, session);
+                final boolean existingSession = c.moveToNext();
+                final boolean signedSession = existingSession && c.getString(3) != null;
+                if (session == 0 || (session == 1 && ! signedSession)) {
+                    String resume = "\n\n";
+                    if (! existingSession) {
+                        resume += "PAS DE SESSION OUVERTE!";
+                    } else if (session == 0) {
+                        if (signedSession) {
+                            resume += "PREMIERE SESSION SIGNEE! MODIFIER OUVRIRA LA DEUXIEME SESSION.";
+                        } else {
+                            resume += "PREMIERE SESSION OUVERTE! SIGNEZ QUAND LE TRAVAIL EST FINI.";
+                        }
+                    } else {
+                        resume += "DEUXIÈME SESSION OUVERTE! SIGNEZ QUAND LE TRAVAIL EST FINI.";
+                    }
                     new AlertDialog.Builder(ListBonActivity.this)
                             .setTitle("BON: " + displaykey)
                             .setIcon(R.drawable.logo)
-                            .setMessage("QUE FAIRE AVEC CE BON?")
+                            .setMessage("QUE FAIRE AVEC CE BON?" + resume)
                             .setPositiveButton("MODIFIER",
                                     new DialogInterface.OnClickListener() {
                                         public void onClick(DialogInterface dialog, int id) {
                                             Intent intent = new Intent(new Intent(ListBonActivity.this, MainActivity.class));
                                             Bundle b = new Bundle();
                                             b.putString("key", key); //Your id
-                                            Cursor c = db.getSession(key, session);
-                                            if (c.moveToNext()) {
-                                                if (c.getString(3) != null) {
+                                            if (existingSession) {
+                                                if (signedSession) {
                                                     // previous session has been closed
                                                     java.util.Date dt = new java.util.Date();
                                                     java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -126,10 +141,8 @@ public class ListBonActivity extends AppCompatActivity {
                             .setNeutralButton("CLOTURER",
                                     new DialogInterface.OnClickListener() {
                                         public void onClick(DialogInterface dialog, int id) {
-
-                                            Cursor c = db.getSession(key, session);
-                                            if (c.moveToNext()) {
-                                                if (c.getString(3) != null) {
+                                            if (existingSession) {
+                                                if (signedSession) {
                                                     // previous session has been closed
                                                     email(getApplicationContext(), "mtsbureau@gmail.com", key, "Informations sur " + displaykey + " en pièce jointe", getAttachments(key));
                                                     db.deleteBon(key);
@@ -151,8 +164,7 @@ public class ListBonActivity extends AppCompatActivity {
                                             Intent intent = new Intent(new Intent(ListBonActivity.this, MainActivity.class));
                                             Bundle b = new Bundle();
                                             b.putString("key", key); //Your id
-                                            Cursor c = db.getSession(key, session);
-                                            if (c.moveToNext()) {
+                                            if (existingSession) {
                                                 b.putInt("session", session);
                                                 b.putInt("vision", 1);
                                                 intent.putExtras(b); //Put your id to your next Intent
@@ -175,8 +187,7 @@ public class ListBonActivity extends AppCompatActivity {
                                             Intent intent = new Intent(new Intent(ListBonActivity.this, MainActivity.class));
                                             Bundle b = new Bundle();
                                             b.putString("key", key); //Your id
-                                            Cursor c = db.getSession(key, session);
-                                            if (c.moveToNext()) {
+                                            if (existingSession) {
                                                 b.putInt("session", session);
                                                 b.putInt("vision", 1);
                                                 intent.putExtras(b); //Put your id to your next Intent
@@ -190,10 +201,8 @@ public class ListBonActivity extends AppCompatActivity {
                             .setNeutralButton("CLOTURER",
                                     new DialogInterface.OnClickListener() {
                                         public void onClick(DialogInterface dialog, int id) {
-
-                                            Cursor c = db.getSession(key, session);
-                                            if (c.moveToNext()) {
-                                                if (c.getString(3) != null) {
+                                            if (existingSession) {
+                                                if (signedSession) {
                                                     // previous session has been closed
                                                     email(getApplicationContext(), "mtsbureau@gmail.com", key, "Informations sur " + displaykey + " en pièce jointe", getAttachments(key));
                                                     db.deleteBon(key);
@@ -209,7 +218,7 @@ public class ListBonActivity extends AppCompatActivity {
                                             }
                                         }
                                     })
-                            .setNegativeButton("RETOUR",
+                            .setPositiveButton("RETOUR",
                                     new DialogInterface.OnClickListener() {
                                         public void onClick(DialogInterface dialog, int id) {
                                             dialog.cancel();
@@ -326,7 +335,8 @@ public class ListBonActivity extends AppCompatActivity {
     }
 
     public List<String> readExcelTitles() throws IOException {
-
+        WorkbookSettings ws = new WorkbookSettings();
+        ws.setEncoding("Cp1252");
         //Find the directory for the SD Card using the API
         File sdcard = Environment.getExternalStorageDirectory();
 
@@ -350,14 +360,14 @@ public class ListBonActivity extends AppCompatActivity {
         if(inputWorkbook.exists()){
             Workbook w;
             try {
-                w = Workbook.getWorkbook(inputWorkbook);
+                w = Workbook.getWorkbook(inputWorkbook, ws);
                 // Get the first sheet
                 Sheet sheet = w.getSheet(0);
                 // Loop over column and lines
                 for (int j = 1; j < sheet.getRows(); j++) {
                     Cell cell = sheet.getCell(0, j);
                     if (cell.getContents() != "" && !resultSet.contains(cell.getContents()) && !AlreadyDone.contains(cell.getContents())) {
-                        resultSet.add(cell.getContents());
+                        resultSet.add(cell.getContents().replaceAll("'", "''"));
                     }
                 }
             } catch (BiffException e) {
@@ -377,6 +387,8 @@ public class ListBonActivity extends AppCompatActivity {
     }
 
     public List<String> readExcelData(String key) throws IOException  {
+        WorkbookSettings ws = new WorkbookSettings();
+        ws.setEncoding("Cp1252");
         List<String> resultSet = new ArrayList<String>();
 
         //Find the directory for the SD Card using the API
@@ -393,7 +405,7 @@ public class ListBonActivity extends AppCompatActivity {
         if(inputWorkbook.exists()){
             Workbook w;
             try {
-                w = Workbook.getWorkbook(inputWorkbook);
+                w = Workbook.getWorkbook(inputWorkbook, ws);
                 // Get the first sheet
                 Sheet sheet = w.getSheet(0);
                 // Loop over column and lines
@@ -402,7 +414,7 @@ public class ListBonActivity extends AppCompatActivity {
                     if(cell.getContents().equalsIgnoreCase(key)){
                         for (int i = 0; i < sheet.getColumns(); i++) {
                             Cell cel = sheet.getCell(i, j);
-                            resultSet.add(cel.getContents());
+                            resultSet.add(cel.getContents().replaceAll("'", "''"));
                         }
                     }
                     continue;

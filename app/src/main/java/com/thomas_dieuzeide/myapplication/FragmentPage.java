@@ -675,7 +675,7 @@ public class FragmentPage extends Fragment {
         input.setMinValue(0);
         input.setMaxValue(5);
         final String[] names = getStringFromFile("workers.txt");
-        input.setDisplayedValues( names );
+        input.setDisplayedValues(names);
         if(name != null) {
             input.setValue(Arrays.asList(names).indexOf(name));
         }
@@ -884,8 +884,8 @@ public class FragmentPage extends Fragment {
                 //You will get as string input data in this variable.
                 // here we convert the input to a string and show in a toast.
                 String description = input.getEditableText().toString();
-                if (description.length() <= 3) {
-                    Toast.makeText(getActivity(), "Description trop courte", Toast.LENGTH_SHORT).show();
+                if (description.length() <= 1) {
+                    Toast.makeText(getActivity(), "Description obligatoire!", Toast.LENGTH_SHORT).show();
                     addPieceDescription(nom);
                 } else {
                     piecedesc = description;
@@ -927,13 +927,13 @@ public class FragmentPage extends Fragment {
                 //You will get as string input data in this variable.
                 // here we convert the input to a string and show in a toast.
                 int quantity = input.getValue();
-                if(nom == null) {
-                    db.addPiece(value,piecetype,piecedesc,quantity,session);
+                if (nom == null) {
+                    db.addPiece(value, piecetype, piecedesc, quantity, session);
                     pieces.add(piecetype + "§" + piecedesc + "§" + quantity);
                     listPieces.add("TYPE: " + piecetype + "\n DESCRIPTION: " + piecedesc + "\n QUANTITE: " + quantity);
                 } else {
-                    db.updatePiece(value, nom[0], piecetype, nom[1], piecedesc,Integer.valueOf(nom[2]),quantity,session);
-                    pieces.set(posPieces, piecetype + "§" + piecedesc+ "§" + quantity);
+                    db.updatePiece(value, nom[0], piecetype, nom[1], piecedesc, Integer.valueOf(nom[2]), quantity, session);
+                    pieces.set(posPieces, piecetype + "§" + piecedesc + "§" + quantity);
                     listPieces.set(posPieces, "TYPE: " + piecetype + "\n DESCRIPTION: " + piecedesc + "\n QUANTITE: " + quantity);
                 }
                 ap.notifyDataSetChanged();
@@ -1000,11 +1000,11 @@ public class FragmentPage extends Fragment {
         }
 
         if(w.get("devis").toString().length() > 1) {
-            addSpannable( "NUMÉRO DEVIS: " + w.get("devis").toString(),res,Color.BLACK);
+            addSpannable( "\n NUMÉRO DEVIS: " + w.get("devis").toString(),res,Color.BLACK);
         }
 
         if(w.get("facture").toString().length() > 1) {
-            addSpannable( "NUMÉRO COMMANDE: " + w.get("facture").toString(),res,Color.BLACK);
+            addSpannable( "\n NUMÉRO COMMANDE: " + w.get("facture").toString(),res,Color.BLACK);
         }
         int i = 1;
         if(pcs.moveToNext()) {
@@ -1023,10 +1023,15 @@ public class FragmentPage extends Fragment {
         String currentTime = sdf.format(dt);
         addSpannable( "\n\n DATE DE LA PRESTATION: " + currentTime.substring(0, 9),res,Color.BLACK);
 
-        addSpannable( "\n\n NOMBRE TECHNICIEN(S): " + w.get("number"),res,Color.BLACK);
+        addSpannable("\n\n NOMBRE TECHNICIEN(S): " + w.get("number"), res, Color.BLACK);
         sess.moveToNext();
-        addSpannable( "\n\n DÉBUT DE LA PRESTATION: " + sess.getString(2).substring(11,16),res,Color.BLACK);
-        addSpannable( "\n FIN DE LA PRESTATION: " + currentTime.substring(11, 16),res,Color.BLACK);
+        addSpannable( "\n\n DÉBUT DE LA PRESTATION: " + sess.getString(2).substring(11, 16),res,Color.BLACK);
+        System.out.println(sess.getString(1) + " " + sess.getString(2) + " " + sess.getString(3) + " ");
+        if (sess.getString(3) != null) {
+            addSpannable( "\n FIN DE LA PRESTATION: " + sess.getString(3).substring(11, 16),res,Color.BLACK);
+        } else {
+            addSpannable( "\n FIN DE LA PRESTATION: " + currentTime.substring(11, 16),res,Color.BLACK);
+        }
 
         if(ws.moveToNext()) {
             addSpannable( "\n\nTRAVAILLEURS ADDITIONELS:\nINITIALES: "+ws.getString(1),res,Color.BLACK);
