@@ -461,7 +461,7 @@ public class FragmentPage extends Fragment {
                 sfacture=values.get("facture").toString();
             }
 
-            if(session > 0) {
+            if(session > 0 && sdemand.length() >= 2) {
                 //We block certain fields as this is not the first session
                 demand.setEnabled(false);
             }
