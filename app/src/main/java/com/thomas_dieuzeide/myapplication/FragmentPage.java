@@ -280,16 +280,24 @@ public class FragmentPage extends Fragment {
                 }
             }
 
-            if(session > 0 || vision > 0) {
+            if(session > 0) {
                 //We block certain fields as this is not the first session
-                actv.setEnabled(false);
-                actv2.setEnabled(false);
+                if (sclient.length() >= 2) {
+                    actv.setEnabled(false);
+                }
+                if (sclientname.length() >= 2) {
+                    actv2.setEnabled(false);
+                }
                 cb.setEnabled(false);
                 lieu.setEnabled(false);
             }
             if(vision > 0) {
                 //We block all the fields as this is vision mode
                 contact.setEnabled(false);
+                actv.setEnabled(false);
+                actv2.setEnabled(false);
+                cb.setEnabled(false);
+                lieu.setEnabled(false);
             }
         } else if(mPage == 2) {
             view = inflater.inflate(R.layout.activity_work, container, false);
