@@ -144,11 +144,7 @@ public class ListBonActivity extends AppCompatActivity {
                                             if (existingSession) {
                                                 if (signedSession) {
                                                     // previous session has been closed
-                                                    email(getApplicationContext(), "mtsbureau@gmail.com", key, "Informations sur " + displaykey + " en pièce jointe", getAttachments(key));
-                                                    db.deleteBon(key);
-                                                    listItems.remove(displaykey);
-                                                    adapter.notifyDataSetChanged();
-                                                    dialog.cancel();
+                                                    cloture(db,listItems,adapter,dialog,key,displaykey);
                                                 } else {
                                                     Toast.makeText(ListBonActivity.this, "LA DERNIERE SESSION EST PAS SIGNEE", Toast.LENGTH_LONG);
                                                 }
@@ -204,11 +200,7 @@ public class ListBonActivity extends AppCompatActivity {
                                             if (existingSession) {
                                                 if (signedSession) {
                                                     // previous session has been closed
-                                                    email(getApplicationContext(), "mtsbureau@gmail.com", key, "Informations sur " + displaykey + " en pièce jointe", getAttachments(key));
-                                                    db.deleteBon(key);
-                                                    listItems.remove(displaykey);
-                                                    adapter.notifyDataSetChanged();
-                                                    dialog.cancel();
+                                                    cloture(db,listItems,adapter,dialog,key,displaykey);
                                                 } else {
                                                     Toast.makeText(ListBonActivity.this, "LA DERNIERE SESSION EST PAS SIGNEE", Toast.LENGTH_LONG);
                                                 }
@@ -488,8 +480,63 @@ public class ListBonActivity extends AppCompatActivity {
         return result;
     }
 
+    public void cloture(DatabaseHelper db, ArrayList<String> listItems, ArrayAdapter<String> adapter,DialogInterface dialog, String key, String displaykey) {
+        final EditText emailEditText = new EditText(ListBonActivity.this);
+        ContentValues client = db.getClient(key);
+        emailEditText.setText(cl.get("contact"), TextView.BufferType.EDITABLE);
+        AlertDialog bon_planning = new AlertDialog.Builder(ListBonActivity.this)
+                            .setTitle("SOUHAITEZ-VOUS ENVOYEZ LES INFORMATIONS DE CE BON AU CLIENT ET/OU A MTS?")
+                            .setIcon(R.drawable.logo)
+                            .setNeutralButton("CLIENT & MTS",
+                                    new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int id) {
+                                            try {
+                                                String customer_email = emailEditText.getText().toString();
+
+                                                if isValidEmailAddress(customer_email) {
+                                                    email(getApplicationContext(), customer_email, "[Modern Team Services] Informations sur " + key, "" , null, getHtml(key));
+                                                    
+                                                    email(getApplicationContext(), "mtsbureau@gmail.com", key, "Informations sur " + displaykey + " en pièce jointe", getAttachments(key), getHtml(key));
+                                                    db.deleteBon(key);
+                                                    listItems.remove(displaykey);
+                                                    adapter.notifyDataSetChanged();
+                                                    dialog.cancel();
+                                                } else {
+                                                    Toast.makeText(ListBonActivity.this, "ADRESSE EMAIL NON VALIDE", Toast.LENGTH_LONG);
+                                                }
+                                                
+                                            } catch (Exception e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                    })
+                            .setNegativeButton("MTS",
+                                    new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface dialog, int id) {
+                                            email(getApplicationContext(), "mtsbureau@gmail.com", key, "Informations sur " + displaykey + " en pièce jointe", getAttachments(key), getHtml(key));
+                                            db.deleteBon(key);
+                                            listItems.remove(displaykey);
+                                            adapter.notifyDataSetChanged();
+                                            dialog.cancel();
+                                        }
+                                    })
+                            .setView(emailEditText)
+                            .show();
+    }
+
+    public static boolean isValidEmailAddress(String email) {
+       boolean result = true;
+       try {
+          InternetAddress emailAddr = new InternetAddress(email);
+          emailAddr.validate();
+       } catch (AddressException ex) {
+          result = false;
+       }
+       return result;
+    }
+
     public void email(Context context, String emailTo,
-                      String subject, String emailText, List<File> filePaths)
+                      String subject, String emailText, List<File> filePaths, StringBuilder html)
     {
         //need to "send multiple" to get more than one attachment
         final Intent emailIntent = new Intent(Intent.ACTION_SEND_MULTIPLE);
@@ -502,10 +549,16 @@ public class ListBonActivity extends AppCompatActivity {
                     info.activityInfo.name.toLowerCase().contains("gmail")) best = info;
         if (best != null)
             emailIntent.setClassName(best.activityInfo.packageName, best.activityInfo.name);
+
         emailIntent.putExtra(android.content.Intent.EXTRA_EMAIL,
                 new String[]{emailTo});
         emailIntent.putExtra(Intent.EXTRA_SUBJECT, subject);
-        emailIntent.putExtra(Intent.EXTRA_TEXT, emailText);
+
+        emailIntent.putExtra(
+            Intent.EXTRA_TEXT,
+            Html.fromHtml(html.toString())
+        );
+
 
         //has to be an ArrayList
         ArrayList<Uri> uris = new ArrayList<Uri>();
@@ -730,6 +783,298 @@ public class ListBonActivity extends AppCompatActivity {
 
         }
 
+    }
+
+    public StringBuilder getHtml(String key) {
+        int i = 0;
+        ContentValues client = db.getClient(key);
+        ContentValues work = db.getWork(key, i);
+        Cursor wkers = db.getAllWorkers(key, i);
+        Cursor pices = db.getAllPieces(key, i);
+        Cursor sess = db.getSession(key, i);
+
+        String result = "<head>" + "\n" +
+        "<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"/>" + "\n" + 
+        "<title></title>" + "\n" + 
+        "<meta name=\"generator\" content=\"LibreOffice 6.0.2.1 (Linux)\"/>" + "\n" + 
+        "<meta name=\"created\" content=\"2018-06-04T09:29:42.289930700\"/>" + "\n" + 
+        "<meta name=\"changed\" content=\"2018-06-04T09:35:39.802158700\"/>" + "\n" +
+
+        "<style type=\"text/css\">" + "\n" +
+            "body,div,table,thead,tbody,tfoot,tr,th,td,p { font-family:\"Arial\"; font-size:x-small }" + "\n" +
+            "a.comment-indicator:hover + comment { background:#ffd; position:absolute; display:block; border:1px solid black; padding:0.5em;  }" + "\n" + 
+            "a.comment-indicator { background:red; display:inline-block; border:1px solid black; width:0.5em; height:0.5em;  } " + "\n" +
+            "comment { display:none;  }" + "\n" +
+        "</style>" + "\n" +
+        "</head>" + "\n" +
+        "<body>" + "\n" +
+        "<table cellspacing=\"0\" border=\"0\">" + "\n" +
+            "<colgroup width=\"87\"></colgroup>" + "\n" +
+            "<colgroup span=\"2\" width=\"72\"></colgroup>" + "\n" +
+            "<colgroup span=\"3\" width=\"62\"></colgroup>" + "\n" +
+            "<colgroup width=\"70\"></colgroup>" + "\n" +
+            "<colgroup width=\"64\"></colgroup>" + "\n" +
+            "<colgroup width=\"107\"></colgroup>" + "\n" +
+            "<colgroup width=\"88\"></colgroup>" + "\n" +
+            "<colgroup span=\"2\" width=\"107\"></colgroup>" + "\n" +
+            "<colgroup width=\"112\"></colgroup>" + "\n" +
+            "<tr>" + "\n" +
+                "<td colspan=7 height=\"22\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> REPARATIONS - ENTRETIENS - REMPLACEMENT  </font></td>" + "\n" +
+                "<td colspan=3 rowspan=7 align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br><img src=\"ic_launcher\" width=222 height=124 hspace=19 vspace=15>" + "\n" +
+                "</font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=3 align=\"center\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> BON DE TRAVAIL N° : WERKBON </font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td colspan=7 height=\"22\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> PORTES ET CHASSIS ALU- ACIER - GLACE TREMPEE  </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=3 rowspan=2 align=\"center\" sdval=\"0\" sdnum=\"1033;\"><font face=\"Calibri\" size=5 color=\"#FF0000\">"+key+"</font></td>" + "\n" +
+            "</tr>" + "\n" +
+                "<tr>" + "\n" +
+                "<td colspan=7 height=\"22\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> SERRURERIE - FERRONNERIE - PORTES AUTOMATIQUES </font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td colspan=7 height=\"20\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td colspan=3 rowspan=5 align=\"center\" valign=middle sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" size=4 color=\"#000000\"> MODERN TEAM SERVICES <br>PLACE J. GOFFIN 31 1480 CLABECQ <br>T.V.A. : BE 0440.147.297  </font></b></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td colspan=7 height=\"21\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> HERSTELLINGEN - ONDERHOUD - VERVANGINGEN </font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td colspan=7 height=\"21\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> DEUREN EN OMLIJSTINGEN ALU- STAAL - HARD GLAS  </font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td colspan=7 height=\"21\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> SLOTEMAKERSWERK - IJZERWERK </font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td colspan=7 height=\"21\" align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> AUTOMATISCHE DEUREN </font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=7 height=\"21\" align=\"center\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"> LIEU DES PRESTATIONS - PRESTATIE PLAATS </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=3 align=\"center\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"> NOM CLIENT - NAAM </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=3 align=\"center\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"> CODE CLIENT </font></b></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=7 rowspan=2 height=\"64\" align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" size=4 color=\"#0070C0\">"+cl.get("lieu").toString()+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=3 rowspan=2 align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#0070C0\">"+cl.get("name_client").toString()+"</font></b></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=3 rowspan=2 align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;0\"><b><font face=\"Calibri\" size=4 color=\"#0070C0\">"+cl.get("code_client").toString()+"</font></b></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000\" height=\"21\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> TRAVAIL DEMANDE - GEVRAAD WERK :  </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-right: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-right: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000\" colspan=2 align=\"center\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> Nom Contact :  </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-right: 2px solid #000000\" colspan=4 align=\"center\" bgcolor=\"#FFFFFF\" sdval=\"0\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\">"+client.get("contact").toString()+"</font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=13 rowspan=3 height=\"59\" align=\"left\" valign=top sdval=\"0\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#0070C0\">"+w.get("demand").toString()+"</font></b></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr></tr><tr></tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-left: 2px solid #000000\" height=\"23\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" size=3 color=\"#000000\"> PREMIER PASSAGE : </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> N° COMMANDE  : </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" colspan=2 align=\"center\" bgcolor=\"#FFFFFF\" sdval=\"0\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#0070C0\">"+w.get("facture").toString()+"</font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> N° DEVIS :  </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-right: 2px solid #000000\" colspan=2 align=\"center\" bgcolor=\"#FFFFFF\" sdval=\"0\" sdnum=\"1033;\"><font face=\"Calibri\" color=\"#0070C0\">"+w.get("devis").toString()+"</font></td>" + "\n" +
+            "</tr>" + "\n";
+
+            result += html_passage(client,sess,work,wkers,pices);
+            
+
+        i = getSessionNumber(key);
+        if (i > 0) {
+            work = db.getWork(key, i);
+            wkers = db.getAllWorkers(key, i);
+            pices = db.getAllPieces(key, i);
+            sess = db.getSession(key, i);
+
+            result += "<tr>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000; border-left: 2px solid #000000\" height=\"1\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-bottom: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-left: 2px solid #000000\" height=\"23\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" size=3 color=\"#000000\">  SECOND PASSAGE : </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\"><br></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-right: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\"><br></td>" + "\n" +
+            "</tr>" + "\n"
+
+            result += html_passage(client,sess,work,wkers,pices);
+        }
+        
+        result += "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000\" height=\"23\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" size=1 color=\"#000000\"> La signature du bon de travail vaut accord pour la commande </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-right: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" size=1 color=\"#000000\"> Toute demi heure entammée est due : </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-right: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=10 rowspan=2 height=\"45\" align=\"center\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> Les conditions générales de vente M.T.S. qui régissent ce travail sont téléchargeables sur notre site www.mtssa.be </font></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+            "</tr>" + "\n" +
+            "</table>" + "\n" +
+            "</body>" + "\n" +
+            "</html>"
+
+
+        return new StringBuilder().append(result)
+
+
+    }
+
+    public String html_passage(ContentValues client, Cursor sess, ContentValues w, Cursor wkers, Cursor pices) {
+        result = "<tr>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-left: 2px solid #000000\" height=\"21\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> TRAVAIL EXECUTE - UITGEVOERD WERK </font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\"><br></td>"+ "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-right: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\"><br></td>"+ "\n" +
+            "</tr>"+ "\n" +
+            "<tr>"+ "\n" +
+                "<td style=\"border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 2px solid #000000\" colspan=13 rowspan=3 height=\"59\" align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#0070C0\">"+w.get("execute").toString()+"</font></b></td>"+ "\n" +
+            "</tr>"+ "\n" +
+            "<tr></tr><tr></tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-left: 2px solid #000000\" height=\"21\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> OBSERVATIONS- OPMERK </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-right: 2px solid #000000\" colspan=8 rowspan=2 align=\"center\" sdval=\"0\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\">"+w.get("observations").toString()+"</font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-left: 2px solid #000000\" height=\"21\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+            "</tr>" + "\n" +
+            "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 2px solid #000000; border-right: 1px solid #000000\" height=\"21\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> PIECES REMPLACEES- VERVANGEN STUKKEN </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> code art. </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"> Quantité </font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\"></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 2px solid #000000\" align=\"left\"></td>" + "\n" +
+            "</tr>" + "\n";
+
+        int i = 0;
+        while(pcs.moveToNext()) {
+            result += "<tr>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 2px solid #000000; border-right: 1px solid #000000\" colspan=9 height=\"21\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+pcs.getString(2)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#00B0F0\"><br></font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"center\" sdval=\"0\" sdnum=\"1033;0;#,##0_ ;-#,##0 \"><b><font face=\"Calibri\" color=\"#00B0F0\">"+pcs.getString(1)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"right\" bgcolor=\"#FFF2CC\" sdval=\"0\" sdnum=\"1033;0;#,##0.00&quot; €&quot;\"><b><font face=\"Calibri\" color=\"#00B0F0\"></font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;#,##0.00&quot; €&quot;\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+pcs.getString(3)+"</font></b></td>" + "\n" +
+            "</tr>" + "\n";
+            
+            i++;
+        }
+
+        result += "<tr>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 2px solid #000000; border-right: 1px solid #000000\" colspan=9 height=\"21\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#00B0F0\"></font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#00B0F0\"><br></font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"center\" sdval=\"0\" sdnum=\"1033;0;#,##0_ ;-#,##0 \"><b><font face=\"Calibri\" color=\"#00B0F0\"></font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"right\" bgcolor=\"#FFF2CC\" sdval=\"0\" sdnum=\"1033;0;#,##0.00&quot; €&quot;\"><b><font face=\"Calibri\" color=\"#00B0F0\"></font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;#,##0.00&quot; €&quot;\"><b><font face=\"Calibri\" color=\"#00B0F0\"></font></b></td>" + "\n" +
+            "</tr>" + "\n";
+
+        result +=   "<tr>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 2px solid #000000; border-right: 1px solid #000000\" height=\"21\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"> DATE  </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"> Nb Tech  </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" size=1 color=\"#000000\"> INITIALES </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" colspan=2 align=\"center\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"> Heure Arrivée </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"> Heure départ </font></b></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-bottom: 1px solid #000000; border-left: 1px solid #000000; border-right: 2px solid #000000\" align=\"left\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><b><font face=\"Calibri\" color=\"#000000\"><br></font></b></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td><b><br></font></b></td>" + "\n" +
+                "<td><b></b></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+                "<td style=\"border-top: 2px solid #000000; border-right: 2px solid #000000\" align=\"left\" bgcolor=\"#FFFFFF\" sdnum=\"1033;0;_-* #,##0.00&quot; €&quot;_-;-* #,##0.00&quot; €&quot;_-;_-* -??&quot; €&quot;_-;_-@_-\"><font face=\"Calibri\" color=\"#000000\"><br></font></td>" + "\n" +
+            "</tr>" + "\n";
+
+        sess.moveToNext();
+        String tmp = sess.getString(2);
+        result += "<tr>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 1px solid #000000\" height=\"39\" align=\"right\" valign=middle sdval=\"0\" sdnum=\"1033;0;M/D/YYYY\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+tmp.substring(0, 10)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"right\" valign=middle sdval=\"0\" sdnum=\"1033;0;#,##0_ ;-#,##0 \"><b><font face=\"Calibri\" color=\"#00B0F0\">"+w.get("number").toString()+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000\" align=\"right\" valign=middle sdval=\"0\" sdnum=\"1033;0;#,##0_ ;-#,##0 \"><b><font face=\"Calibri\" color=\"#00B0F0\">"+client.get("id").toString().substring(0, 2)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" colspan=2 align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;H:MM;@\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+tmp.substring(11, 16)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000; border-right: 2px solid #000000\" colspan=2 align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;H:MM;@\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+sess.getString(3).substring(11, 16)+"</font></b></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+            "</tr>" + "\n";
+        if(ws.moveToNext()) {
+            result += "<tr>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 2px solid #000000; border-right: 1px solid #000000\" height=\"39\" align=\"right\" valign=middle sdval=\"0\" sdnum=\"1033;0;M/D/YYYY\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+tmp.substring(0, 10)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" align=\"right\" valign=middle sdval=\"0\" sdnum=\"1033;0;#,##0_ ;-#,##0 \"><b><font face=\"Calibri\" color=\"#00B0F0\">"+ws.getString(5)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000\" align=\"right\" valign=middle sdval=\"0\" sdnum=\"1033;0;#,##0_ ;-#,##0 \"><b><font face=\"Calibri\" color=\"#00B0F0\">"+ws.getString(1)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000; border-right: 1px solid #000000\" colspan=2 align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;H:MM;@\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+ws.getString(2)+"</font></b></td>" + "\n" +
+                "<td style=\"border-top: 1px solid #000000; border-bottom: 2px solid #000000; border-left: 1px solid #000000; border-right: 2px solid #000000\" colspan=2 align=\"center\" valign=middle sdval=\"0\" sdnum=\"1033;0;H:MM;@\"><b><font face=\"Calibri\" color=\"#00B0F0\">"+ws.getString(3)+"</font></b></td>" + "\n" +
+                "<td></td>" + "\n" +
+                "<td></td>" + "\n" +
+            "</tr>" + "\n";
+        }
+
+        return result;
     }
 
 }
