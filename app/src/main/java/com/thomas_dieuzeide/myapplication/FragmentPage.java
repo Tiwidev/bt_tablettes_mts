@@ -217,7 +217,7 @@ public class FragmentPage extends Fragment {
                         String c = codes[Arrays.asList(names).indexOf(sclientname)];
                         blip = !blip;
                         if(blip) {
-                            actv.setText(c);
+                            actv.setText(c.replaceAll("\\s+",""));
                         }
                     }
                 }
@@ -636,7 +636,7 @@ public class FragmentPage extends Fragment {
 
     public String[] getStringFromFile(String filename) {
         //Find the directory for the SD Card using the API
-        File sdcard = Environment.getExternalStorageDirectory();
+        File sdcard =  Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 
         //Get the text file
         File file1 = new File(sdcard.getAbsolutePath());
